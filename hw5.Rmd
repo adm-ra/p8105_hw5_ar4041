@@ -128,6 +128,8 @@ While both group observations start among similar values, the experimental group
 ## Problem 3
 
 ```{r}
+
+#pre-function tests#
 sim_data = 
   tibble(
     x = rnorm(30, mean = 0, sd = 5),
@@ -139,8 +141,8 @@ sim_data %>%
     sigma_hat = sd(x)
   )
 
-
-sim_results = 
+#initial t-test with mean=0#
+sim_results_0 = 
   tibble(
     data = rerun(5000, rnorm(n = 30, mean = 0, sd = 5))
     ) %>% 
@@ -150,8 +152,16 @@ sim_results =
     tidy_ts = map(.x = t_tests, ~broom::tidy(.x))
   ) %>% 
   unnest(tidy_ts) %>% 
-  select(estimate, p.value)
+  select(estimate, p.value) %>% 
+  mutate(
+    null = case_when(
+      p.value > 0.05 ~ "Accept",
+      p.value < 0.05 ~ "Reject"
+    ),
+    true_val = 0
+  )
   
+#create function#
 t_function = function(n = 30, mu, sigma = 5) {
   
 sim_results = 
@@ -164,16 +174,25 @@ sim_results =
     tidy_ts = map(.x = t_tests, ~broom::tidy(.x))
   ) %>% 
   unnest(tidy_ts) %>% 
-  select(estimate, p.value)
-
+  select(estimate, p.value) %>% 
+  mutate(
+    null = case_when(
+      p.value > 0.05 ~ "Accept",
+      p.value < 0.05 ~ "Reject"
+    ),
+    true_val = mu
+  )
 }
 
+#testing the function#
 sim_results_1 = t_function(n = 30, mu = 1, sigma = 5)
 sim_results_2 = t_function(n = 30, mu = 2, sigma = 5)
 sim_results_3 = t_function(n = 30, mu = 3, sigma = 5)
 sim_results_4 = t_function(n = 30, mu = 4, sigma = 5)
 sim_results_5 = t_function(n = 30, mu = 5, sigma = 5)
 sim_results_6 = t_function(n = 30, mu = 6, sigma = 5)
+
+#for loop to create list of estimates and means#
 
 mu_list = 
   list(
@@ -186,12 +205,28 @@ mu_list =
     "mu = 6" = 6
   )
 
-t_output = vector("list", length = 7)
+t_output = vector("list", length = 7) 
 
 for (i in 1:7) {
   t_output[[i]] = 
     t_function(n = 30, mu = mu_list[[i]], sigma = 5) %>% 
     bind_rows()
 }
+
+prop_plot = 
+t_output %>% 
+  bind_rows() %>% 
+  group_by(true_val) %>% 
+  summarize(
+    test_total = n(),
+    null_reject = sum(null == "Reject")
+  ) %>% 
+  mutate(
+    proportion = null_reject / test_total
+  )  %>% 
+  ggplot(aes(x = true_val , y = proportion)) + 
+  geom_point() +
+  geom_line()
+
 ```
 
