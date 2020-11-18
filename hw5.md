@@ -31,6 +31,7 @@ options(
 )
 scale_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
+set.seed(1)
 ```
 
 ## Problem 1
@@ -381,3 +382,77 @@ experimental group values generally increase while the control group
 values generally stay the same.
 
 ## Problem 3
+
+``` r
+sim_data = 
+  tibble(
+    x = rnorm(30, mean = 0, sd = 5),
+      )
+
+sim_data %>% 
+  summarize(
+    mu_hat = mean(x),
+    sigma_hat = sd(x)
+  )
+```
+
+    ## # A tibble: 1 x 2
+    ##   mu_hat sigma_hat
+    ##    <dbl>     <dbl>
+    ## 1  0.412      4.62
+
+``` r
+sim_results = 
+  tibble(
+    data = rerun(5000, rnorm(n = 30, mean = 0, sd = 5))
+    ) %>% 
+  bind_rows() %>% 
+  mutate(
+    t_tests = map(.x = data, ~t.test(.x, mu = 0)),
+    tidy_ts = map(.x = t_tests, ~broom::tidy(.x))
+  ) %>% 
+  unnest(tidy_ts) %>% 
+  select(estimate, p.value)
+  
+t_function = function(n = 30, mu, sigma = 5) {
+  
+sim_results = 
+  tibble(
+    data = rerun(5000, rnorm(n = n, mean = mu, sd = sigma))
+    ) %>% 
+  bind_rows() %>% 
+  mutate(
+    t_tests = map(.x = data, ~t.test(.x, mu = mu)),
+    tidy_ts = map(.x = t_tests, ~broom::tidy(.x))
+  ) %>% 
+  unnest(tidy_ts) %>% 
+  select(estimate, p.value)
+
+}
+
+sim_results_1 = t_function(n = 30, mu = 1, sigma = 5)
+sim_results_2 = t_function(n = 30, mu = 2, sigma = 5)
+sim_results_3 = t_function(n = 30, mu = 3, sigma = 5)
+sim_results_4 = t_function(n = 30, mu = 4, sigma = 5)
+sim_results_5 = t_function(n = 30, mu = 5, sigma = 5)
+sim_results_6 = t_function(n = 30, mu = 6, sigma = 5)
+
+mu_list = 
+  list(
+    "mu = 0" = 0,
+    "mu = 1" = 1,
+    "mu = 2" = 2,
+    "mu = 3" = 3,
+    "mu = 4" = 4,
+    "mu = 5" = 5,
+    "mu = 6" = 6
+  )
+
+t_output = vector("list", length = 7)
+
+for (i in 1:7) {
+  t_output[[i]] = 
+    t_function(n = 30, mu = mu_list[[i]], sigma = 5) %>% 
+    bind_rows()
+}
+```
