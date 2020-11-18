@@ -19,6 +19,8 @@ library(tidyverse)
     ## x dplyr::lag()    masks stats::lag()
 
 ``` r
+library(patchwork)
+
 knitr::opts_chunk$set(
   fig.width = 6,
   fig.asp = .6,
@@ -424,15 +426,15 @@ sim_results_0 =
   )
   
 #create function#
-t_function = function(n = 30, mu, sigma = 5) {
+t_function = function(n = 30, mu1, sigma = 5) {
   
 sim_results = 
   tibble(
-    data = rerun(5000, rnorm(n = n, mean = mu, sd = sigma))
+    data = rerun(5000, rnorm(n = n, mean = mu1, sd = sigma))
     ) %>% 
   bind_rows() %>% 
   mutate(
-    t_tests = map(.x = data, ~t.test(.x, mu = mu)),
+    t_tests = map(.x = data, ~t.test(.x, mu = 0)),
     tidy_ts = map(.x = t_tests, ~broom::tidy(.x))
   ) %>% 
   unnest(tidy_ts) %>% 
@@ -442,17 +444,17 @@ sim_results =
       p.value > 0.05 ~ "Accept",
       p.value < 0.05 ~ "Reject"
     ),
-    true_val = mu
+    true_val = mu1
   )
 }
 
 #testing the function#
-sim_results_1 = t_function(n = 30, mu = 1, sigma = 5)
-sim_results_2 = t_function(n = 30, mu = 2, sigma = 5)
-sim_results_3 = t_function(n = 30, mu = 3, sigma = 5)
-sim_results_4 = t_function(n = 30, mu = 4, sigma = 5)
-sim_results_5 = t_function(n = 30, mu = 5, sigma = 5)
-sim_results_6 = t_function(n = 30, mu = 6, sigma = 5)
+sim_results_1 = t_function(n = 30, mu1 = 1, sigma = 5)
+sim_results_2 = t_function(n = 30, mu1 = 2, sigma = 5)
+sim_results_3 = t_function(n = 30, mu1 = 3, sigma = 5)
+sim_results_4 = t_function(n = 30, mu1 = 4, sigma = 5)
+sim_results_5 = t_function(n = 30, mu1 = 5, sigma = 5)
+sim_results_6 = t_function(n = 30, mu1 = 6, sigma = 5)
 
 #for loop to create list of estimates and means#
 
@@ -471,7 +473,7 @@ t_output = vector("list", length = 7)
 
 for (i in 1:7) {
   t_output[[i]] = 
-    t_function(n = 30, mu = mu_list[[i]], sigma = 5) %>% 
+    t_function(n = 30, mu1 = mu_list[[i]], sigma = 5) %>% 
     bind_rows()
 }
 
@@ -492,3 +494,46 @@ t_output %>%
 ```
 
     ## `summarise()` ungrouping output (override with `.groups` argument)
+
+As the effect size increases, the proportion of tests that reject the
+null increases until it is at 100%.
+
+``` r
+estimate_plot = 
+  t_output %>% 
+  bind_rows() %>% 
+  group_by(true_val) %>% 
+  summarize(
+    mean_estimate = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = true_val , y = mean_estimate)) + 
+  geom_point() 
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+``` r
+reject_plot = 
+t_output %>% 
+  bind_rows() %>% 
+  filter(null == "Reject") %>% 
+  group_by(true_val) %>% 
+  summarize(
+    mean_estimate = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = true_val , y = mean_estimate)) + 
+  geom_point()
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+``` r
+estimate_plot + reject_plot
+```
+
+<img src="hw5_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
+
+It is approximately equal for most values, except when the true value is
+close to the null value of 0. When the true and null values are close,
+the t-test is less likely to reject the null. This pushes the mean
+estimate for rejected tests up.
